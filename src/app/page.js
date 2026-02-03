@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, ExternalLink, Code2, Eye, X, CheckCircle } from "lucide-react";
+import { Copy, ExternalLink, Code2, Eye, X, Plus } from "lucide-react"; // Ada icon Plus baru
 import { Toaster, toast } from "sonner";
 import { supabase } from "@/lib/supabase"; 
 import CodeEditor from "@/components/CodeEditor";
+import { useRouter } from "next/navigation"; // Buat pindah halaman
 
-// --- Komponen Kartu Glowing ---
+// ... (Bagian SpotlightCard tetap sama, tidak perlu diubah)
 function SpotlightCard({ children, className = "" }) {
   const divRef = useRef(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -39,7 +40,7 @@ function SpotlightCard({ children, className = "" }) {
   );
 }
 
-// --- Komponen Modal Pop-up ---
+// ... (Bagian ProjectModal tetap sama, tidak perlu diubah)
 const ProjectModal = ({ project, onClose, onUpdateProject }) => {
   const [viewMode, setViewMode] = useState("preview");
   const [isSaving, setIsSaving] = useState(false);
@@ -62,7 +63,7 @@ const ProjectModal = ({ project, onClose, onUpdateProject }) => {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    toast("Link disalin ke clipboard");
+    toast.success("Link disalin!");
   };
 
   return (
@@ -80,17 +81,12 @@ const ProjectModal = ({ project, onClose, onUpdateProject }) => {
         onClick={(e) => e.stopPropagation()}
         className="bg-[#0a0a0a] w-full max-w-5xl h-[85vh] rounded-[2rem] border border-neutral-800 overflow-hidden flex flex-col shadow-2xl relative"
       >
-        {/* Header Modal */}
         <div className="flex justify-between items-center p-6 border-b border-neutral-800">
-          <div>
-            <h2 className="text-2xl font-bold text-white">{project.title}</h2>
-          </div>
+          <h2 className="text-2xl font-bold text-white">{project.title}</h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-neutral-800 text-white">
             <X size={24} />
           </button>
         </div>
-
-        {/* Isi Modal */}
         <div className="flex-1 overflow-hidden relative bg-neutral-950">
           {viewMode === "preview" ? (
             <div className="w-full h-full flex items-center justify-center relative group">
@@ -111,8 +107,6 @@ const ProjectModal = ({ project, onClose, onUpdateProject }) => {
             />
           )}
         </div>
-
-        {/* Footer Controls */}
         <div className="p-4 border-t border-neutral-800 bg-neutral-900 flex justify-between items-center">
           <div className="flex bg-black p-1 rounded-full border border-neutral-800">
             <button onClick={() => setViewMode("preview")} className={`px-4 py-2 rounded-full text-sm font-medium transition ${viewMode === "preview" ? "bg-neutral-800 text-white" : "text-neutral-500"}`}>
@@ -122,27 +116,35 @@ const ProjectModal = ({ project, onClose, onUpdateProject }) => {
               <Code2 size={16} className="inline mr-2" /> Code
             </button>
           </div>
-          <button onClick={() => copyToClipboard(project.link)} className="p-3 bg-neutral-800 rounded-full text-white">
-            <Copy size={18} />
-          </button>
         </div>
       </motion.div>
     </motion.div>
   );
 };
 
-// --- Main Page ---
+// --- Main Page (YANG KITA UPDATE) ---
 export default function PortfolioVault() {
   const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true); // Tambah loading state
   const [selectedProject, setSelectedProject] = useState(null);
+  const router = useRouter(); // Buat navigasi
 
   useEffect(() => {
     fetchProjects();
   }, []);
 
   async function fetchProjects() {
-    const { data } = await supabase.from('projects').select('*').order('id');
-    if (data) setProjects(data);
+    setLoading(true);
+    // Coba ambil data
+    const { data, error } = await supabase.from('projects').select('*').order('id');
+    
+    if (error) {
+      console.error("Error fetching:", error);
+      toast.error("Gagal mengambil data database");
+    } else {
+      setProjects(data || []);
+    }
+    setLoading(false);
   }
 
   const handleUpdateProject = (updated) => {
@@ -154,10 +156,46 @@ export default function PortfolioVault() {
     <div className="min-h-screen bg-black text-white font-sans">
       <Toaster position="bottom-center" />
       
-      <main className="pt-20 pb-20 px-6 max-w-7xl mx-auto">
-        <h1 className="text-5xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-white to-neutral-500">Project Vault.</h1>
-        <p className="text-neutral-400 mb-12">Simpan link & codingan projectmu disini.</p>
+      {/* Header Baru dengan Tombol Admin */}
+      <header className="flex justify-between items-center pt-8 px-6 max-w-7xl mx-auto mb-12">
+        <div>
+          <h1 className="text-5xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-white to-neutral-500">Project Vault.</h1>
+          <p className="text-neutral-400">Simpan link & codingan projectmu disini.</p>
+        </div>
+        
+        {/* Tombol Menuju Admin */}
+        <button 
+          onClick={() => router.push('/admin')}
+          className="flex items-center gap-2 px-5 py-3 bg-white text-black font-bold rounded-full hover:bg-neutral-200 transition"
+        >
+          <Plus size={20} /> Add Project
+        </button>
+      </header>
 
+      <main className="pb-20 px-6 max-w-7xl mx-auto">
+        
+        {/* Tampilan Loading */}
+        {loading && (
+          <div className="text-center py-20 text-neutral-500 animate-pulse">
+            Memuat data dari Vault...
+          </div>
+        )}
+
+        {/* Tampilan Jika Data Kosong */}
+        {!loading && projects.length === 0 && (
+          <div className="text-center py-20 border border-dashed border-neutral-800 rounded-3xl">
+            <h3 className="text-xl font-bold text-neutral-400 mb-2">Belum ada project</h3>
+            <p className="text-neutral-600 mb-6">Database Supabase kamu masih kosong.</p>
+            <button 
+              onClick={() => router.push('/admin')}
+              className="text-purple-400 hover:text-purple-300 underline"
+            >
+              Klik disini untuk tambah project pertamamu
+            </button>
+          </div>
+        )}
+
+        {/* Tampilan Grid Project */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[300px]">
           {projects.map((project) => (
             <div
